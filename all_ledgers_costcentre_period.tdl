@@ -1,0 +1,61 @@
+[Button: Export PNL Matrix CC]
+Key             : Alt+M
+Title           : "Export P&L Matrix (Cost Centers)"
+Action          : Call : ExportPNLMatrixCC
+Scope           : Selected Company
+
+[Function: ExportPNLMatrixCC]
+Variable        : SVFileName : String
+
+001 : SET        : SVFileName : $$SysName:ExportPNL_CC
+002 : SET        : SVFileName : ##SVFileName + "\PNL_Matrix_" + $$DateFormat:$$SysDate:"DD-MM-YYYY" + ".xls"
+003 : EXPORT     : Report : "PNL Matrix CC" : ##SVFileName
+
+[Report: PNL Matrix CC]
+Form            : PNL Matrix CC
+Title           : "Profit & Loss Matrix (Cost Centers)"
+Object          : Ledger
+Filter          : OnlyPLAccounts
+Sort            : $Name
+
+[Form: PNL Matrix CC]
+Part            : PNL Matrix CC Part
+No Confirm      : Yes
+
+[Part: PNL Matrix CC Part]
+Line            : PNL Matrix CC Line
+Repeat          : PNL Matrix CC Line : Vouchers
+Scroll          : Vertical
+
+[Line: PNL Matrix CC Line]
+Field           : Simple Field
+
+Local           : Field : Simple Field : Set as : $$MakeCSV( $$DateFormat:$Date:"DD-MM-YYYY", $VoucherTypeName, $VoucherNumber, $LedgerName, $Narration, ##CSVCCAmounts, ##GrandTotal )
+
+[Field: Simple Field]
+Width           : 1000
+Align           : Left
+
+; ---------------- COLLECTIONS ----------------
+
+[Collection: Vouchers]
+Type            : Voucher
+Fetch           : Date, VoucherTypeName, VoucherNumber, LedgerEntries.*, LedgerName, CostCenterName, Amount, Narration
+Filter          : OnlyPLAccounts
+
+[Collection: CostCentersList]
+Type            : CostCenter
+Fetch           : Name
+
+; ---------------- SYSTEM FORMULAS ----------------
+
+[System: Formula]
+OnlyPLAccounts  : $$IsLedOfGrp:$LedgerName:"Profit & Loss"
+
+; Dynamically prepare cost center amounts per voucher
+CSVCCAmounts    : $$LoopCollection:CostCentersList:##LoopCC
+GrandTotal      : $Amount
+
+[System: Formula]
+LoopCC          : ##LoopCC + "," + $$AsAmount:$$FilterAmt:$LedgerEntries:##LoopCC
+
