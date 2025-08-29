@@ -1,0 +1,462 @@
+[#Menu: Gateway of Tally]
+    Add : Key Item : PL Export : P&L Export (Ledger & Voucher-wise)
+
+[Key Item: PL Export]
+    Key         : Alt+F12
+    Action      : Display : PL Export Report
+    
+[#Report: PL Export Report]
+    Form        : PL Export Form
+    
+[#Form: PL Export Form]
+    Width       : 80% Page
+    Height      : 80% Page
+    Button      : FormAccept, FormCancel, FormPrint, Export to Excel
+    
+    Parts       : PL Export Form Title, PL Export Form Body
+    
+    Local Field : SVFromDate    : Date       : $$YearStart
+    Local Field : SVToDate      : Date       : $$YearEnd
+    Local Field : SVCostCenter  : String     : "All"
+    
+[Part: PL Export Form Title]
+    Line        : PL Export Form Title Line
+    
+[Line: PL Export Form Title Line]
+    Fields      : Medium Prompt, PL Export Form Title Field
+    
+[Field: PL Export Form Title Field]
+    Info        : "P&L Account Export - Ledger & Voucher-wise with Cost Center"
+    
+[Part: PL Export Form Body]
+    Lines       : PL Export Date Range Line, PL Export Cost Center Line, PL Export Data Line
+    Scroll      : Vertical
+    
+[Line: PL Export Date Range Line]
+    Fields      : Medium Prompt, From Date Field, Medium Prompt, To Date Field
+    
+[Field: From Date Field]
+    Use         : Date Field
+    Storage     : SVFromDate
+    Set as      : $$YearStart
+    Prompt      : "From Date"
+    
+[Field: To Date Field]
+    Use         : Date Field
+    Storage     : SVToDate
+    Set as      : $$YearEnd
+    Prompt      : "To Date"
+    
+[Line: PL Export Cost Center Line]
+    Fields      : Medium Prompt, Cost Center Selection Field
+    
+[Field: Cost Center Selection Field]
+    Use         : Name Field
+    Storage     : SVCostCenter
+    Table       : Cost Centre
+    Prompt      : "Cost Center (Leave blank for All)"
+    Option      : Cost Centre Name
+    
+[Line: PL Export Data Line]
+    Use         : PL Export Data Collection
+    
+[Collection: PL Export Data Collection]
+    Type        : P&L Ledgers : Group
+    Child Of    : $$GroupPrimary
+    Belongs     : Yes
+    Format      : $Name, 15
+    Format      : $ClosingBalance, 15
+    
+    [System: Formula]
+        PL Period   : $$SVFromDate..$$SVToDate
+        
+[Button: Export to Excel]
+    Key     : Alt + E
+    Action  : Export : PL Export to Excel : Collection : "PL Export Data Collection"
+
+;; ============================================================================
+;; DETAILED P&L EXPORT REPORT WITH VOUCHER DETAILS
+;; ============================================================================
+
+[#Report: PL Detailed Export Report]
+    Use         : DSP Template
+    Form        : PL Detailed Export Form
+    
+[#Form: PL Detailed Export Form]
+    Width       : 100% Page
+    Height      : 90% Page
+    Button      : FormAccept, FormCancel, Export Excel Detailed
+    
+    Parts       : PL Detailed Export Title, PL Detailed Export Body
+    
+    Local Field : SVFromDate        : Date     : $$YearStart
+    Local Field : SVToDate          : Date     : $$YearEnd  
+    Local Field : SVCostCenter      : String   : "All"
+    Local Field : SVIncomeExpense   : String   : "Both"
+    
+[Part: PL Detailed Export Title]
+    Line        : PL Detailed Export Title Line
+    
+[Line: PL Detailed Export Title Line]  
+    Fields      : Medium Prompt, PL Detailed Title Field
+    
+[Field: PL Detailed Title Field]
+    Info        : "Detailed P&L Export - Voucher-wise Analysis"
+    
+[Part: PL Detailed Export Body]
+    Lines       : PL Filter Lines, PL Detailed Data Lines
+    Common Border : Yes
+    
+[Line: PL Filter Lines]  
+    Fields      : Medium Prompt, Detailed From Date, Medium Prompt, Detailed To Date
+    
+[Field: Detailed From Date]
+    Use         : Date Field
+    Storage     : SVFromDate
+    Prompt      : "From Date"
+    
+[Field: Detailed To Date]
+    Use         : Date Field  
+    Storage     : SVToDate
+    Prompt      : "To Date"
+    
+[Line: PL Detailed Data Lines]
+    Use         : PL Voucher Details Collection
+    
+;; ============================================================================
+;; COLLECTIONS FOR DETAILED EXPORT
+;; ============================================================================
+
+[Collection: PL Voucher Details Collection]
+    Type        : Vouchers
+    Child Of    : $$VchTypeTrading, $$VchTypePandL
+    Belongs     : Yes
+    
+    Filter      : PLVoucherFilter
+    
+    Title       : $$LocaleString:"Voucher Details"
+    Format      : $VoucherTypeName, 12
+    Format      : $VoucherNumber, 10  
+    Format      : $Date, 10
+    Format      : $Reference, 15
+    Format      : $Amount, 15, Right
+    
+    Aggr Compute : VoucherAmount : Sum : $Amount
+    
+    [System: Formula]
+        PLVoucherFilter : $$InDateRange:$Date:$$SVFromDate:$$SVToDate
+        
+[Collection: PL Ledger Analysis Collection]
+    Type        : Ledger
+    Child Of    : $$GroupIncome, $$GroupExpenses
+    Belongs     : Yes
+    
+    Filter      : PLLedgerFilter
+    
+    Title       : $$LocaleString:"P&L Ledger Analysis"
+    Format      : $Name, 25
+    Format      : $Parent, 20
+    Format      : $ClosingBalance, 15, Right
+    Format      : $OpeningBalance, 15, Right
+    
+    SubTitle    : "Cost Center-wise Breakup"
+    
+    [Collection: Cost Center Breakup]
+        Type        : Cost Centre
+        Belongs     : Yes
+        
+        Filter      : CostCenterFilter
+        
+        Format      : $Name, 20
+        Format      : $ClosingBalance:Ledger:$$Owner, 15, Right
+        
+        [System: Formula]  
+            CostCenterFilter : $$SVCostCenter = "All" OR $Name = $$SVCostCenter
+            
+    [System: Formula]
+        PLLedgerFilter  : $$ClosingBalance:$Name:$$SVFromDate:$$SVToDate <> 0
+        
+;; ============================================================================
+;; VOUCHER-WISE ANALYSIS COLLECTIONS
+;; ============================================================================
+
+[Collection: Voucher Wise PL Collection]
+    Type        : Vouchers  
+    Child Of    : $$VchTypeJournal, $$VchTypeContra, $$VchTypePayment, $$VchTypeReceipt, $$VchTypeSales, $$VchTypePurchase
+    Belongs     : Yes
+    
+    Filter      : VoucherDateFilter, PLVoucherTypeFilter
+    
+    Title       : $$LocaleString:"Voucher-wise P&L Impact"
+    
+    Format      : $VoucherTypeName, 12
+    Format      : $VoucherNumber, 12
+    Format      : $Date, 10
+    Format      : $PartyLedgerName, 20
+    Format      : $Amount, 15, Right
+    Format      : $Reference, 15
+    
+    SubReport   : Voucher Inventory Details : $VoucherKey
+    
+    [Collection: Ledger Entries in Voucher]
+        Type        : Ledger Entries
+        Belongs     : Yes
+        
+        Filter      : PLLedgerEntryFilter
+        
+        Format      : $LedgerName, 25  
+        Format      : $Amount, 15, Right
+        Format      : $CostCategoryName, 15
+        Format      : $CostCentreAllocations, 20
+        
+        [System: Formula]
+            PLLedgerEntryFilter : $$IsLedgerOfGroup:$LedgerName:$$GroupIncome OR $$IsLedgerOfGroup:$LedgerName:$$GroupExpenses
+    
+    [System: Formula]
+        VoucherDateFilter       : $$InDateRange:$Date:$$SVFromDate:$$SVToDate  
+        PLVoucherTypeFilter     : $VoucherTypeName <> "Opening Balance"
+
+;; ============================================================================
+;; EXCEL EXPORT FUNCTIONS
+;; ============================================================================
+
+[Function: Export PL to Excel]
+    Parameter   : Collection Name : String
+    Parameter   : File Name       : String : "PL_Export"
+    Parameter   : Include Vouchers: Logical : Yes
+    
+    Variable    : ExcelFile       : String
+    Variable    : WorksheetName   : String : "P&L Analysis"
+    
+    00 : Set    : ExcelFile       : $$SVExportPath + $$FileNamePrefix + $FileName + ".xlsx"
+    
+    ;; Create Excel Headers
+    01 : Excel Create File : $ExcelFile
+    02 : Excel Add Worksheet : $WorksheetName
+    
+    ;; Headers for Summary Sheet
+    03 : Excel Write Cell : "A1" : "Ledger Name"
+    04 : Excel Write Cell : "B1" : "Group Name"  
+    05 : Excel Write Cell : "C1" : "Opening Balance"
+    06 : Excel Write Cell : "D1" : "Closing Balance"
+    07 : Excel Write Cell : "E1" : "Debit Amount"
+    08 : Excel Write Cell : "F1" : "Credit Amount"
+    09 : Excel Write Cell : "G1" : "Cost Center"
+    10 : Excel Write Cell : "H1" : "Period"
+    
+    ;; Export Ledger Data
+    11 : Walk Collection : $CollectionName : ExportLedgerData
+    
+    ;; Create Voucher Details Sheet if required
+    12 : If : $IncludeVouchers = Yes : Excel Add Worksheet : "Voucher Details"
+    13 : If : $IncludeVouchers = Yes : Excel Write Cell : "A1" : "Voucher Type"  
+    14 : If : $IncludeVouchers = Yes : Excel Write Cell : "B1" : "Voucher Number"
+    15 : If : $IncludeVouchers = Yes : Excel Write Cell : "C1" : "Date"
+    16 : If : $IncludeVouchers = Yes : Excel Write Cell : "D1" : "Ledger Name"
+    17 : If : $IncludeVouchers = Yes : Excel Write Cell : "E1" : "Amount"
+    18 : If : $IncludeVouchers = Yes : Excel Write Cell : "F1" : "Cost Center"
+    19 : If : $IncludeVouchers = Yes : Excel Write Cell : "G1" : "Narration"
+    
+    20 : If : $IncludeVouchers = Yes : Walk Collection : "Voucher Wise PL Collection" : ExportVoucherData
+    
+    21 : Excel Save File
+    22 : Excel Close File
+    
+    90 : MSG BOX : "Excel Export" : "P&L data exported successfully to " + $ExcelFile
+
+[Function: ExportLedgerData]  
+    Parameter   : Current Object  : Ledger
+    
+    Variable    : RowNumber      : Number : $$Line:$CollectionName + 1
+    
+    01 : Excel Write Cell : "A" + $$String:$RowNumber : $Name:Ledger
+    02 : Excel Write Cell : "B" + $$String:$RowNumber : $Parent:Ledger  
+    03 : Excel Write Cell : "C" + $$String:$RowNumber : $OpeningBalance:Ledger:$$SVFromDate:$$SVToDate
+    04 : Excel Write Cell : "D" + $$String:$RowNumber : $ClosingBalance:Ledger:$$SVFromDate:$$SVToDate
+    05 : Excel Write Cell : "E" + $$String:$RowNumber : $DebitAmount:Ledger:$$SVFromDate:$$SVToDate
+    06 : Excel Write Cell : "F" + $$String:$RowNumber : $CreditAmount:Ledger:$$SVFromDate:$$SVToDate
+    07 : Excel Write Cell : "G" + $$String:$RowNumber : $$SVCostCenter
+    08 : Excel Write Cell : "H" + $$String:$RowNumber : $$String:$$SVFromDate + " to " + $$String:$$SVToDate
+
+[Function: ExportVoucherData]
+    Parameter   : Current Object  : Voucher
+    
+    Variable    : VRowNumber     : Number : $$Line:"Voucher Wise PL Collection" + 1
+    
+    01 : Excel Select Worksheet : "Voucher Details" 
+    02 : Excel Write Cell : "A" + $$String:$VRowNumber : $VoucherTypeName:Voucher
+    03 : Excel Write Cell : "B" + $$String:$VRowNumber : $VoucherNumber:Voucher
+    04 : Excel Write Cell : "C" + $$String:$VRowNumber : $Date:Voucher
+    05 : Excel Write Cell : "D" + $$String:$VRowNumber : $PartyLedgerName:Voucher  
+    06 : Excel Write Cell : "E" + $$String:$VRowNumber : $Amount:Voucher
+    07 : Excel Write Cell : "F" + $$String:$VRowNumber : $CostCentreAllocations:Voucher
+    08 : Excel Write Cell : "G" + $$String:$VRowNumber : $Narration:Voucher
+
+;; ============================================================================
+;; ACTION DEFINITIONS
+;; ============================================================================
+
+[#Action: Display]
+    Add : Key Item : PL Export Report : Display : PL Export Form
+
+[Button: FormAccept]  
+    Key     : Enter
+    Action  : Execute : Export PL to Excel : "PL Ledger Analysis Collection" : "PL_Detailed_Export" : Yes
+    
+[Button: Export Excel Detailed]
+    Key     : Ctrl + E  
+    Action  : Execute : Export PL to Excel : "PL Ledger Analysis Collection" : "PL_Export_" + $$DDMMYYDate + "_" + $$Replace:$$String:$$SVFromDate:"/":"" + "_to_" + $$Replace:$$String:$$SVToDate:"/":"" : Yes
+
+[Button: FormPrint]
+    Key     : Ctrl + P
+    Action  : Print Collection : PL Ledger Analysis Collection
+
+;; ============================================================================
+;; ENHANCED EXPORT WITH DRILL-DOWN CAPABILITY  
+;; ============================================================================
+
+[Collection: Enhanced PL Export]
+    Type        : Ledger
+    Filter      : EnhancedPLFilter
+    
+    Title       : $$LocaleString:"Enhanced P&L Analysis" 
+    Sub Title   : "Period: " + $$String:$$SVFromDate + " to " + $$String:$$SVToDate
+    
+    Format      : $Name, 30
+    Format      : $Parent, 20
+    Format      : $OpeningBalance, 15, Right
+    Format      : $ClosingBalance, 15, Right  
+    Format      : $DebitTotal, 15, Right
+    Format      : $CreditTotal, 15, Right
+    
+    ;; Drill-down to voucher details
+    SubReport   : Voucher Details : $Name
+    
+    [Collection: Voucher Breakup]
+        Type        : Ledger Entries
+        Belongs     : Yes
+        Filter      : VoucherBreakupFilter
+        
+        Format      : $VoucherTypeName, 12
+        Format      : $VoucherNumber, 10
+        Format      : $Date, 10
+        Format      : $Amount, 15, Right
+        Format      : $CostCentreAllocations, 20
+        Format      : $BillAllocations, 15
+        
+        [System: Formula]
+            VoucherBreakupFilter : $LedgerName = $$Owner AND $$InDateRange:$Date:$$SVFromDate:$$SVToDate
+            
+    [System: Formula]
+        EnhancedPLFilter : ($$IsLedgerOfGroup:$Name:$$GroupIncome OR $$IsLedgerOfGroup:$Name:$$GroupExpenses) AND $ClosingBalance:$$SVFromDate:$$SVToDate <> 0
+
+;; ============================================================================
+;; COST CENTER-WISE ANALYSIS
+;; ============================================================================
+
+[Collection: Cost Center Wise PL]
+    Type        : Cost Centre
+    Belongs     : Yes
+    Filter      : CostCenterPLFilter
+    
+    Title       : $$LocaleString:"Cost Center-wise P&L Analysis"
+    
+    Format      : $Name, 25
+    Format      : $Parent, 20  
+    
+    SubTitle    : "Income Analysis"
+    [Collection: Income by Cost Center]
+        Type        : Ledger
+        Child Of    : $$GroupIncome
+        Filter      : IncomeCCFilter
+        
+        Format      : $Name, 30
+        Format      : $ClosingBalance:CostCentre:$$Owner, 15, Right
+        
+        [System: Formula]
+            IncomeCCFilter : $ClosingBalance:CostCentre:$$Owner:$$SVFromDate:$$SVToDate <> 0
+    
+    SubTitle    : "Expense Analysis"  
+    [Collection: Expenses by Cost Center]
+        Type        : Ledger
+        Child Of    : $$GroupExpenses
+        Filter      : ExpensesCCFilter
+        
+        Format      : $Name, 30
+        Format      : $ClosingBalance:CostCentre:$$Owner, 15, Right
+        
+        [System: Formula]
+            ExpensesCCFilter : $ClosingBalance:CostCentre:$$Owner:$$SVFromDate:$$SVToDate <> 0
+    
+    [System: Formula]
+        CostCenterPLFilter : $$SVCostCenter = "All" OR $Name = $$SVCostCenter
+
+;; ============================================================================
+;; SYSTEM VARIABLES AND CONSTANTS  
+;; ============================================================================
+
+[System: Variable]
+    SVExportPath        : $$SysInfo:ExportPath
+    FileNamePrefix     : "PL_Analysis_"
+    
+[System: Formula]
+    DDMMYYDate         : $$DMYFormat:$$Today:"DDMMYY"
+
+;; ============================================================================
+;; MENU INTEGRATION
+;; ============================================================================
+
+[#Menu: Gateway of Tally]
+    Add : Item : Before : $$LockQuit : PL Analysis Menu
+    
+[Menu: PL Analysis Menu]
+    Title   : "P&L Export Tools"
+    Item    : "Basic P&L Export"         : Display : PL Export Report  
+    Item    : "Detailed P&L with Vouchers" : Display : PL Detailed Export Report
+    Item    : Separator
+    Item    : "Cost Center Analysis"     : Display : Cost Center Wise PL
+    
+;; ============================================================================
+;; KEYBOARD SHORTCUTS
+;; ============================================================================
+
+[Key Item: Quick PL Export]
+    Key     : Ctrl + Alt + P
+    Action  : Display : PL Export Report
+    
+[Key Item: Detailed PL Export]  
+    Key     : Ctrl + Alt + D
+    Action  : Display : PL Detailed Export Report
+
+;; ============================================================================
+;; EXPORT VALIDATION AND ERROR HANDLING
+;; ============================================================================
+
+[Function: Validate Export Parameters]
+    Variable    : ValidationResult : Logical : Yes
+    Variable    : ErrorMessage     : String  : ""
+    
+    ;; Validate date range
+    01 : If : $$SVFromDate > $$SVToDate : Set : ValidationResult : No
+    02 : If : $$SVFromDate > $$SVToDate : Set : ErrorMessage : "From Date cannot be greater than To Date"
+    
+    ;; Validate cost center exists
+    03 : If : $$SVCostCenter <> "All" AND NOT $$IsCostCentre:$$SVCostCenter : Set : ValidationResult : No  
+    04 : If : $$SVCostCenter <> "All" AND NOT $$IsCostCentre:$$SVCostCenter : Set : ErrorMessage : "Invalid Cost Center Selected"
+    
+    ;; Show error if validation failed
+    05 : If : $ValidationResult = No : MSG BOX : "Validation Error" : $ErrorMessage
+    
+    Return : $ValidationResult
+
+;; ============================================================================
+;; ENHANCED BUTTON ACTIONS WITH VALIDATION
+;; ============================================================================
+
+[Button: FormAccept]
+    Key     : Enter  
+    Action  : If : @@ValidateExportParameters : Execute : Export PL to Excel : "Enhanced PL Export" : "PL_Summary_Export" : No
+    
+[Button: Export Excel Detailed]
+    Key     : Ctrl + E
+    Action  : If : @@ValidateExportParameters : Execute : Export PL to Excel : "Enhanced PL Export" : "PL_Detailed_Export" : Yes
